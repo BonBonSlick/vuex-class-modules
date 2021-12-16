@@ -4,6 +4,7 @@ import { VuexModule } from "./VuexModule";
 
 export interface ModuleOptions {
   generateMutationSetters?: boolean;
+  preserveState?: boolean;
 }
 
 export interface RegisterOptions {
@@ -112,7 +113,7 @@ export class VuexClassModuleFactory {
     }
   }
 
-  registerVuexModule() {
+  registerVuexModule(preserveState: boolean) {
     const vuexModule: StoreModule<any, any> = {
       state: this.definition.state,
       getters: {},
@@ -169,18 +170,24 @@ export class VuexClassModuleFactory {
 
     // register module
     const { store, name } = this.registerOptions;
-    if (store.state[name]) {
-      if (VuexModule.__useHotUpdate || (typeof module !== "undefined" && module.hot)) {
-        store.hotUpdate({
-          modules: {
-            [name]: vuexModule
-          }
-        });
-      } else {
-        throw Error(`[vuex-class-module]: A module with name '${name}' already exists.`);
-      }
+    if (preserveState) {
+      store.registerModule(this.registerOptions.name, vuexModule, {
+        preserveState: !!store.state[name]
+      });
     } else {
-      store.registerModule(this.registerOptions.name, vuexModule);
+      if (store.state[name]) {
+        if (module.hot) {
+          store.hotUpdate({
+            modules: {
+              [name]: vuexModule
+            }
+          });
+        } else {
+          throw Error(`[vuex-class-module]: A module with name '${name}' already exists.`);
+        }
+      } else {
+        store.registerModule(this.registerOptions.name, vuexModule);
+      }
     }
   }
 
